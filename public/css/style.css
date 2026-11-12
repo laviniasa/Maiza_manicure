@@ -30,6 +30,34 @@
   color-scheme: light;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1219;
+    --surface: #2b1822;
+    --surface-2: #36202c;
+    --ink: #fbeef3;
+    --muted: #c4a2b1;
+    --line: #462a38;
+    --primary: #f07aa6;
+    --primary-deep: #e0578b;
+    --primary-ink: #2b1018;
+    --primary-soft: #4a2536;
+    --gold: #e4c47c;
+    --gold-deep: #d0ab5a;
+    --gold-light: #f3dc9a;
+    --gold-soft: #3a2c1c;
+    --rose-grad: linear-gradient(135deg, #f58db3 0%, #e8679a 100%);
+    --in: #6fcf97;
+    --in-soft: #1f3328;
+    --out: #f28b80;
+    --out-soft: #43222a;
+    --warn: #f0a85a;
+    --warn-soft: #3b2c1a;
+    --shadow: 0 1px 2px rgb(0 0 0 / 35%);
+    color-scheme: dark;
+  }
+}
+
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
