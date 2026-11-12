@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { getSettings, getUser, clearCache } from './data.js';
 import { esc, loading } from './utils.js';
+import { icon } from './icons.js';
 
 import inicio from './views/inicio.js';
 import agenda from './views/agenda.js';
@@ -13,27 +14,26 @@ import config from './views/config.js';
 const ROUTES = { inicio, agenda, clientes, retornos, caixa, servicos, config };
 
 const NAV = [
-  ['inicio', 'Início', '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
-  ['agenda', 'Agenda', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
-  ['clientes', 'Clientes', '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-6M22 21c0-3-2-5-5-5.5"/>'],
-  ['retornos', 'Retornos', '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>'],
-  ['caixa', 'Caixa', '<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 10v.01M18 15v.01"/>'],
+  ['inicio', 'Início'],
+  ['agenda', 'Agenda'],
+  ['clientes', 'Clientes'],
+  ['retornos', 'Retornos'],
+  ['caixa', 'Caixa'],
 ];
 
 const app = document.getElementById('app');
 let renderToken = 0;
 
-function icon(paths) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-}
 
 function renderLogin() {
   app.innerHTML = `
     <main class="auth">
       <form class="auth-card" id="login" novalidate>
-        <div class="brand-mark">💅</div>
-        <h1>Bem-vinda</h1>
-        <p class="muted">Entre para ver sua agenda.</p>
+        <img src="icons/logo.svg" class="auth-logo" alt="">
+        <p class="eyebrow center">Studio de unhas</p>
+        <h1 class="center">Bem-vinda</h1>
+        <div class="gold-rule"></div>
+        <p class="muted center">Entre para ver sua agenda.</p>
         <label>E-mail<input name="email" type="email" autocomplete="email" required></label>
         <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
         <p class="form-error" role="alert" hidden></p>
@@ -70,7 +70,7 @@ function renderLogin() {
 async function renderShell() {
   app.innerHTML = `
     <header class="topbar">
-      <a href="#/inicio" class="brand"><span class="brand-dot">💅</span><span id="business-name"></span></a>
+      <a href="#/inicio" class="brand"><img src="icons/logo.svg" class="brand-logo" alt=""><span id="business-name"></span></a>
       <nav class="top-links">
         <a href="#/servicos">Serviços</a>
         <a href="#/config">Ajustes</a>
@@ -78,7 +78,7 @@ async function renderShell() {
     </header>
     <main id="view" class="view"></main>
     <nav class="tabbar">
-      ${NAV.map(([key, label, paths]) => `<a href="#/${key}" data-route="${key}">${icon(paths)}<span>${label}</span></a>`).join('')}
+      ${NAV.map(([key, label]) => `<a href="#/${key}" data-route="${key}">${icon(key)}<span>${label}</span></a>`).join('')}
     </nav>`;
   try {
     const s = await getSettings();

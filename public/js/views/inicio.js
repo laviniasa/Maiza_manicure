@@ -3,6 +3,7 @@ import { getServices, SUGGESTED_SERVICES } from '../data.js';
 import { appointmentCard, bindAppointmentCards, openAppointmentForm } from '../appointments.js';
 import { esc, money, isoDate, addDays, startOfMonth, endOfMonth, fmtLongDate, emptyState, toast } from '../utils.js';
 import { summarize } from './caixa.js';
+import { icon } from '../icons.js';
 
 export default async function inicio(view, _param, stillCurrent) {
   const now = new Date();
@@ -27,7 +28,7 @@ export default async function inicio(view, _param, stillCurrent) {
   view.innerHTML = `
     <section class="hero">
       <p class="eyebrow">${esc(fmtLongDate(now))}</p>
-      <h1>${greeting}!</h1>
+      <h1>${greeting}<span class="accent">!</span></h1>
       <p class="muted">${appointments.length
         ? `${appointments.length} atendimento${appointments.length > 1 ? 's' : ''} hoje${pendingToday ? `, ${pendingToday} a concluir` : ''}.`
         : 'Nenhum atendimento marcado para hoje.'}</p>
@@ -67,10 +68,8 @@ export default async function inicio(view, _param, stillCurrent) {
     </section>
 
     <section class="shortcuts">
-      <a href="#/agenda" class="shortcut">📅<span>Agenda</span></a>
-      <a href="#/clientes" class="shortcut">👩<span>Clientes</span></a>
-      <a href="#/retornos" class="shortcut">🔁<span>Retornos</span></a>
-      <a href="#/caixa" class="shortcut">💰<span>Caixa</span></a>
+      ${[['agenda', 'Agenda'], ['clientes', 'Clientes'], ['retornos', 'Retornos'], ['caixa', 'Caixa']]
+        .map(([k, l]) => `<a href="#/${k}" class="shortcut"><i>${icon(k)}</i><span>${l}</span></a>`).join('')}
     </section>`;
 
   const refresh = () => inicio(view, null, stillCurrent);
