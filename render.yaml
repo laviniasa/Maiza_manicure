@@ -1,0 +1,17 @@
+services:
+  - type: web
+    runtime: static
+    name: maiza-manicure
+    branch: main
+    buildCommand: ""
+    staticPublishPath: .
+    headers:
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /js/*
+        name: Cache-Control
+        value: no-cache
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
