@@ -2,8 +2,10 @@ databases:
   - name: maiza-db
     plan: free
     region: virginia
-    databaseName: maiza
-    user: maiza
+    databaseName: maiza_db
+    user: maiza_db_user
+    postgresMajorVersion: "16"
+    ipAllowList: []
 
 services:
   - type: web
