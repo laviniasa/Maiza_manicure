@@ -1,7 +1,7 @@
 // Service worker: permite instalar o app e abrir a tela mesmo com internet instável.
 // Os dados (agenda, clientes, caixa) sempre vêm do servidor; só os arquivos do app ficam em cache.
 // Ao publicar mudanças grandes, aumente o número da versão.
-const CACHE = 'studio-v3';
+const CACHE = 'studio-v4';
 
 const SHELL = [
   './',
