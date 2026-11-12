@@ -1,4 +1,4 @@
-import { db } from '../supabase.js';
+import { api } from '../api.js';
 import { getSettings, saveSettings, getUser } from '../data.js';
 import { esc, fillTemplate, toast } from '../utils.js';
 
@@ -56,10 +56,15 @@ export default async function config(view, _param, stillCurrent) {
   pw.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!pw.reportValidity()) return;
-    const { error } = await db.auth.updateUser({ password: pw.password.value });
-    if (error) toast(error.message, 'error');
-    else { pw.reset(); toast('Senha alterada'); }
+    try {
+      await api('/password', { method: 'POST', body: { password: pw.password.value } });
+      pw.reset();
+      toast('Senha alterada');
+    } catch (err) { toast(err.message, 'error'); }
   });
 
-  view.querySelector('#logout').addEventListener('click', () => db.auth.signOut());
+  view.querySelector('#logout').addEventListener('click', async () => {
+    await api('/logout', { method: 'POST' }).catch(() => {});
+    window.dispatchEvent(new Event('auth:expired'));
+  });
 }

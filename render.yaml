@@ -1,17 +1,30 @@
+databases:
+  - name: maiza-db
+    plan: free
+    region: virginia
+    databaseName: maiza
+    user: maiza
+
 services:
   - type: web
-    runtime: static
     name: maiza-manicure
+    runtime: node
+    plan: free
+    region: virginia
     branch: main
-    buildCommand: ""
-    staticPublishPath: .
-    headers:
-      - path: /sw.js
-        name: Cache-Control
-        value: no-cache
-      - path: /js/*
-        name: Cache-Control
-        value: no-cache
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: maiza-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

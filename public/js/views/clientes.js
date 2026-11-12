@@ -1,6 +1,6 @@
-import { db, check } from '../supabase.js';
+import { api, qs } from '../api.js';
 import { getSettings, STATUS_LABEL } from '../data.js';
-import { APPT_SELECT, openAppointmentForm } from '../appointments.js';
+import { openAppointmentForm } from '../appointments.js';
 import {
   esc, openForm, toast, confirmDialog, emptyState, fmtPhone, waLink, fmtDate, fmtTime, money, fillTemplate,
 } from '../utils.js';
@@ -8,7 +8,7 @@ import {
 export default async function clientes(view, id, stillCurrent) {
   if (id) return clientDetail(view, id, stillCurrent);
 
-  const clients = check(await db.from('clients').select('id, name, phone').order('name'));
+  const clients = await api('/clients');
   if (!stillCurrent()) return;
 
   view.innerHTML = `
@@ -60,8 +60,8 @@ export function openClientForm({ client = null, onSaved } = {}) {
         whatsapp_opt_in: v.whatsapp_opt_in === 'on',
       };
       const saved = client
-        ? check(await db.from('clients').update(row).eq('id', client.id).select().single())
-        : check(await db.from('clients').insert(row).select().single());
+        ? await api(`/clients/${client.id}`, { method: 'PUT', body: row })
+        : await api('/clients', { method: 'POST', body: row });
       toast(client ? 'Cliente atualizada' : 'Cliente cadastrada');
       onSaved?.(saved);
     },
@@ -70,8 +70,8 @@ export function openClientForm({ client = null, onSaved } = {}) {
 
 async function clientDetail(view, id, stillCurrent) {
   const [client, history, settings] = await Promise.all([
-    db.from('clients').select('*').eq('id', id).single().then(check),
-    db.from('appointments').select(APPT_SELECT).eq('client_id', id).order('starts_at', { ascending: false }).then(check),
+    api(`/clients/${encodeURIComponent(id)}`),
+    api('/appointments' + qs({ client_id: id, order: 'desc' })),
     getSettings(),
   ]);
   if (!stillCurrent()) return;
@@ -134,7 +134,7 @@ async function clientDetail(view, id, stillCurrent) {
       { confirmLabel: 'Excluir', danger: true });
     if (!ok) return;
     try {
-      check(await db.from('clients').delete().eq('id', id));
+      await api(`/clients/${id}`, { method: 'DELETE' });
       toast('Cliente excluída');
       location.hash = '#/clientes';
     } catch (err) { toast(err.message, 'error'); }

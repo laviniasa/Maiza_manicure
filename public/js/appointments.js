@@ -1,4 +1,4 @@
-import { db, check } from './supabase.js';
+import { api } from './api.js';
 import { getServices, getClients, STATUS_LABEL } from './data.js';
 import {
   esc, openForm, toast, isoDate, timeInput, parseMoney, moneyInput, money, confirmDialog,
@@ -70,7 +70,7 @@ export async function openAppointmentForm({ appointment = null, date = null, cli
       form.querySelector('[data-delete]')?.addEventListener('click', async () => {
         if (!(await confirmDialog('Excluir este horário? Esta ação não pode ser desfeita.', { confirmLabel: 'Excluir', danger: true }))) return;
         try {
-          check(await db.from('appointments').delete().eq('id', a.id));
+          await api(`/appointments/${a.id}`, { method: 'DELETE' });
           toast('Horário excluído');
           close();
           onSaved?.();
@@ -83,20 +83,13 @@ export async function openAppointmentForm({ appointment = null, date = null, cli
       const duration = Number(v.duration_min);
       const startsAt = new Date(`${v.date}T${v.time}`);
       if (Number.isNaN(startsAt.getTime())) throw new Error('Data ou horário inválido.');
-      const endsAt = new Date(startsAt.getTime() + duration * 60000);
       const status = v.status || 'agendado';
-
-      if (status === 'agendado' || status === 'concluido') {
-        await assertNoConflict(startsAt, endsAt, a?.id);
-      }
 
       let clientIdToUse = v.client_id;
       let createdClientId = null;
       if (clientIdToUse === '__new') {
         if (!v.new_name.trim()) throw new Error('Informe o nome da nova cliente.');
-        const c = check(await db.from('clients')
-          .insert({ name: v.new_name.trim(), phone: v.new_phone.trim() || null })
-          .select('id').single());
+        const c = await api('/clients', { method: 'POST', body: { name: v.new_name.trim(), phone: v.new_phone.trim() || null } });
         clientIdToUse = createdClientId = c.id;
       }
 
@@ -104,7 +97,6 @@ export async function openAppointmentForm({ appointment = null, date = null, cli
         client_id: clientIdToUse,
         service_id: v.service_id || null,
         starts_at: startsAt.toISOString(),
-        ends_at: endsAt.toISOString(),
         duration_min: duration,
         price,
         notes: v.notes.trim() || null,
@@ -112,40 +104,16 @@ export async function openAppointmentForm({ appointment = null, date = null, cli
       };
 
       try {
-        if (a) {
-          check(await db.from('appointments').update(row).eq('id', a.id));
-          if (a.status === 'concluido' && status !== 'concluido') {
-            check(await db.from('transactions').delete().eq('appointment_id', a.id));
-          } else if (status === 'concluido' && price > 0) {
-            check(await db.from('transactions').update({ amount: price }).eq('appointment_id', a.id));
-          }
-        } else {
-          check(await db.from('appointments').insert(row));
-        }
+        if (a) await api(`/appointments/${a.id}`, { method: 'PUT', body: row });
+        else await api('/appointments', { method: 'POST', body: row });
       } catch (err) {
-        if (createdClientId) await db.from('clients').delete().eq('id', createdClientId);
+        if (createdClientId) await api(`/clients/${createdClientId}`, { method: 'DELETE' }).catch(() => {});
         throw err;
       }
       toast(a ? 'Horário atualizado' : 'Horário agendado');
       onSaved?.();
     },
   });
-}
-
-async function assertNoConflict(startsAt, endsAt, ignoreId) {
-  let q = db.from('appointments')
-    .select('id, starts_at, clients(name)')
-    .in('status', ['agendado', 'concluido'])
-    .lt('starts_at', endsAt.toISOString())
-    .gt('ends_at', startsAt.toISOString())
-    .limit(1);
-  if (ignoreId) q = q.neq('id', ignoreId);
-  const rows = check(await q);
-  if (rows.length) {
-    const other = rows[0];
-    const hour = new Date(other.starts_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    throw new Error(`Conflito: já existe horário às ${hour}${other.clients?.name ? ` com ${other.clients.name}` : ''}.`);
-  }
 }
 
 /** Conclui o atendimento e lança a entrada no caixa (recebida ou a receber). */
@@ -165,18 +133,7 @@ export function completeAppointment(appt, onDone) {
     async onSubmit(v) {
       const price = parseMoney(v.price);
       if (Number.isNaN(price) || price < 0) throw new Error('Valor inválido.');
-      check(await db.from('appointments').update({ status: 'concluido', price }).eq('id', appt.id));
-      if (price > 0) {
-        check(await db.from('transactions').upsert({
-          appointment_id: appt.id,
-          type: 'entrada',
-          category: 'Atendimento',
-          description: label,
-          amount: price,
-          date: isoDate(new Date(appt.starts_at)),
-          is_paid: v.paid === 'yes',
-        }, { onConflict: 'appointment_id' }));
-      }
+      await api(`/appointments/${appt.id}/complete`, { method: 'POST', body: { price, paid: v.paid === 'yes' } });
       toast(v.paid === 'yes' ? `Concluído • ${money(price)} no caixa` : 'Concluído • valor a receber');
       onDone?.();
     },
@@ -185,10 +142,7 @@ export function completeAppointment(appt, onDone) {
 
 export async function setAppointmentStatus(appt, status, onDone) {
   try {
-    check(await db.from('appointments').update({ status }).eq('id', appt.id));
-    if (appt.status === 'concluido') {
-      check(await db.from('transactions').delete().eq('appointment_id', appt.id));
-    }
+    await api(`/appointments/${appt.id}/status`, { method: 'POST', body: { status } });
     toast(`Marcado como ${STATUS_LABEL[status].toLowerCase()}`);
     onDone?.();
   } catch (err) {
@@ -215,8 +169,6 @@ export function appointmentCard(a, { showDate = false } = {}) {
       </div>
     </article>`;
 }
-
-export const APPT_SELECT = '*, clients(id, name, phone), services(name)';
 
 /** Liga os botões dos cartões de agendamento dentro de um container. */
 export function bindAppointmentCards(container, appointments, refresh) {

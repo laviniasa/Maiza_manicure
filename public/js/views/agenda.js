@@ -1,5 +1,5 @@
-import { db, check } from '../supabase.js';
-import { APPT_SELECT, appointmentCard, bindAppointmentCards, openAppointmentForm } from '../appointments.js';
+import { api, qs } from '../api.js';
+import { appointmentCard, bindAppointmentCards, openAppointmentForm } from '../appointments.js';
 import {
   esc, isoDate, parseDate, addDays, startOfMonth, endOfMonth, fmtMonth, fmtLongDate, emptyState, money,
 } from '../utils.js';
@@ -12,10 +12,10 @@ export default async function agenda(view, param, stillCurrent) {
   const monthStart = startOfMonth(selDate);
   const monthEnd = endOfMonth(selDate);
 
-  const appointments = check(await db.from('appointments').select(APPT_SELECT)
-    .gte('starts_at', monthStart.toISOString())
-    .lt('starts_at', addDays(monthEnd, 1).toISOString())
-    .order('starts_at'));
+  const appointments = await api('/appointments' + qs({
+    from: monthStart.toISOString(),
+    to: addDays(monthEnd, 1).toISOString(),
+  }));
   if (!stillCurrent()) return;
 
   const byDay = new Map();

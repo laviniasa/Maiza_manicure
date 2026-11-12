@@ -2,8 +2,9 @@
 
 Sistema web instalável (PWA) para manicure: agenda, clientes, controle de retornos, WhatsApp com mensagem pronta e controle de caixa.
 
-- **Frontend:** HTML, CSS e JavaScript puro (sem etapa de build), hospedado no Render como site estático.
-- **Backend:** Supabase (login, banco PostgreSQL e regras de segurança por conta).
+Tudo roda no **Render**:
+- **Serviço web (Node.js):** serve o app e a API, com login por sessão segura.
+- **Banco Render Postgres:** o servidor cria e atualiza as tabelas sozinho ao iniciar.
 
 ## Funcionalidades
 
@@ -17,29 +18,38 @@ Sistema web instalável (PWA) para manicure: agenda, clientes, controle de retor
 | Caixa | Entradas e saídas por mês, categorias, valores a receber/pagar fora do saldo; ao concluir um atendimento a entrada é lançada automaticamente |
 | Serviços | Nome, duração, preço e prazo de retorno |
 
-## Configuração
+## Estrutura
 
-### 1. Supabase
-1. Crie um projeto em [supabase.com](https://supabase.com) (região São Paulo).
-2. Em **SQL Editor**, cole o conteúdo de `supabase/schema.sql` e clique em **Run**.
-3. Em **Authentication > Sign In / Providers**, desative "Allow new users to sign up" (só a dona do studio acessa).
-4. Em **Authentication > Users > Add user**, crie o usuário da manicure (e-mail e senha).
-5. Em **Authentication > URL Configuration**, coloque a URL do site do Render em *Site URL* (necessário para "Esqueci minha senha").
-6. Em **Project Settings > API**, copie a *Project URL* e a *anon public key* para `js/config.js`.
+```
+public/          app (HTML, CSS, JS puro, PWA)
+server/          servidor Node: API, login, banco
+  schema.sql     tabelas e regras (roda a cada início, sem perder dados)
+test/            testes da API
+render.yaml      configuração do Render
+```
 
-### 2. Render
-1. Em [render.com](https://render.com): **New > Blueprint** e escolha este repositório (o `render.yaml` já configura tudo).
-2. Cada `git push` na branch `main` publica uma nova versão.
+## Variáveis de ambiente (Render)
 
-### 3. Instalar no celular
-Abra o site no navegador do celular e use **Adicionar à tela inicial**.
+| Variável | Uso |
+| --- | --- |
+| `DATABASE_URL` | Conexão do Postgres (preenchida pelo Render) |
+| `SESSION_SECRET` | Chave das sessões (gerada pelo Render) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Conta da manicure, criada no primeiro início |
+| `ADMIN_RESET_PASSWORD` | `true` redefine a senha para `ADMIN_PASSWORD` no próximo início. Remova depois, senão a sessão cai a cada reinício |
+
+## Planos gratuitos do Render: atenção
+- **Banco gratuito expira 30 dias após a criação.** Antes disso, mude o banco para um plano pago no painel do Render (os dados são mantidos). Depois de expirar há 14 dias de carência; passado isso, os dados são apagados.
+- **Serviço web gratuito "dorme"** após 15 minutos sem uso e leva cerca de 1 minuto para abrir de novo.
+- O plano gratuito não é indicado para produção; o pago resolve os dois pontos.
 
 ## Desenvolvimento local
 ```bash
-python3 -m http.server 8000
-# abra http://localhost:8000
+npm install
+DATABASE_URL=postgres://usuario:senha@localhost:5432/maiza ADMIN_EMAIL=voce@exemplo.com ADMIN_PASSWORD=senha12345 npm start
+# abra http://localhost:3000
+BASE=http://localhost:3000 node test/api-test.mjs   # testes (use um banco de teste)
 ```
-Ao alterar arquivos do app, aumente a versão em `sw.js` (`studio-v1` → `studio-v2`) para os celulares receberem a atualização.
+Ao alterar arquivos do app, aumente a versão em `public/sw.js` para os celulares receberem a atualização.
 
 ## Próxima fase: envio automático pelo WhatsApp
-O banco já guarda a autorização da cliente (`clients.whatsapp_opt_in`), a data prevista (`appointments.return_due`) e o registro de envio (`appointments.return_reminded_at`). A integração com a API oficial do WhatsApp Business será feita com uma Edge Function do Supabase agendada (pg_cron).
+O banco já guarda a autorização da cliente (`clients.whatsapp_opt_in`), a data prevista (`appointments.return_due`) e o registro de envio (`appointments.return_reminded_at`). A integração com a API oficial do WhatsApp Business pode rodar como um Cron Job do Render.

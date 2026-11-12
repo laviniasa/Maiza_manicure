@@ -1,6 +1,6 @@
-import { db, check } from '../supabase.js';
+import { api, qs } from '../api.js';
 import { getServices, SUGGESTED_SERVICES } from '../data.js';
-import { APPT_SELECT, appointmentCard, bindAppointmentCards, openAppointmentForm } from '../appointments.js';
+import { appointmentCard, bindAppointmentCards, openAppointmentForm } from '../appointments.js';
 import { esc, money, isoDate, addDays, startOfMonth, endOfMonth, fmtLongDate, emptyState, toast } from '../utils.js';
 import { summarize } from './caixa.js';
 
@@ -11,14 +11,9 @@ export default async function inicio(view, _param, stillCurrent) {
   const today = isoDate(now);
 
   const [appointments, returns, transactions, services] = await Promise.all([
-    db.from('appointments').select(APPT_SELECT)
-      .gte('starts_at', dayStart.toISOString()).lt('starts_at', dayEnd.toISOString())
-      .neq('status', 'cancelado').order('starts_at').then(check),
-    db.from('client_returns').select('client_id, return_due, has_next_appointment')
-      .not('return_due', 'is', null).eq('has_next_appointment', false)
-      .lte('return_due', isoDate(addDays(now, 7))).then(check),
-    db.from('transactions').select('type, amount, is_paid')
-      .gte('date', isoDate(startOfMonth(now))).lte('date', isoDate(endOfMonth(now))).then(check),
+    api('/appointments' + qs({ from: dayStart.toISOString(), to: dayEnd.toISOString(), exclude_cancelled: 1 })),
+    api('/returns').then((rows) => rows.filter((r) => !r.has_next_appointment && r.return_due <= isoDate(addDays(now, 7)))),
+    api('/transactions' + qs({ from: isoDate(startOfMonth(now)), to: isoDate(endOfMonth(now)) })),
     getServices(),
   ]);
   if (!stillCurrent()) return;
@@ -57,7 +52,7 @@ export default async function inicio(view, _param, stillCurrent) {
       <a class="stat" href="#/caixa">
         <span class="stat-label">Saldo do mês</span>
         <strong class="${month.balance < 0 ? 'neg' : ''}">${money(month.balance)}</strong>
-        <span class="stat-foot">${month.pending ? `${money(month.pending)} a receber` : 'Nada pendente'}</span>
+        <span class="stat-foot">${month.pending ? `${money(month.pending)} a receber` : 'Nada a receber'}</span>
       </a>
     </section>
 
@@ -83,7 +78,7 @@ export default async function inicio(view, _param, stillCurrent) {
   view.querySelector('#new-appt').addEventListener('click', () => openAppointmentForm({ date: today, onSaved: refresh }));
   view.querySelector('#seed-services')?.addEventListener('click', async () => {
     try {
-      check(await db.from('services').insert(SUGGESTED_SERVICES));
+      await api('/services', { method: 'POST', body: SUGGESTED_SERVICES });
       toast('Serviços criados! Ajuste os preços em Serviços.');
       location.hash = '#/servicos';
     } catch (err) { toast(err.message, 'error'); }

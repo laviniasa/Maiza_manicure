@@ -1,6 +1,6 @@
-import { db, isConfigured, friendlyError } from './supabase.js';
-import { getSettings, clearCache } from './data.js';
-import { esc, loading, toast } from './utils.js';
+import { api } from './api.js';
+import { getSettings, getUser, clearCache } from './data.js';
+import { esc, loading } from './utils.js';
 
 import inicio from './views/inicio.js';
 import agenda from './views/agenda.js';
@@ -25,17 +25,6 @@ let renderToken = 0;
 
 function icon(paths) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-}
-
-function renderSetupNeeded() {
-  app.innerHTML = `
-    <main class="auth">
-      <div class="auth-card">
-        <div class="brand-mark">💅</div>
-        <h1>Quase lá</h1>
-        <p>Preencha <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> em <code>js/config.js</code> para conectar o sistema ao banco de dados. O passo a passo está no README.</p>
-      </div>
-    </main>`;
 }
 
 function renderLogin() {
@@ -63,47 +52,18 @@ function renderLogin() {
     const btn = form.querySelector('[type=submit]');
     btn.disabled = true;
     errorEl.hidden = true;
-    const { error } = await db.auth.signInWithPassword({
-      email: form.email.value.trim(),
-      password: form.password.value,
-    });
-    btn.disabled = false;
-    if (error) showError(friendlyError(error).message);
-  });
-
-  document.getElementById('forgot').addEventListener('click', async () => {
-    const email = form.email.value.trim();
-    if (!email) return showError('Digite seu e-mail acima e toque de novo em "Esqueci minha senha".');
-    const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
-    if (error) showError(friendlyError(error).message);
-    else toast('Enviamos um link de recuperação para o seu e-mail.');
-  });
-}
-
-function renderPasswordReset() {
-  app.innerHTML = `
-    <main class="auth">
-      <form class="auth-card" id="reset" novalidate>
-        <div class="brand-mark">🔑</div>
-        <h1>Nova senha</h1>
-        <label>Nova senha<input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
-        <p class="form-error" role="alert" hidden></p>
-        <button class="btn btn-primary btn-block" type="submit">Salvar senha</button>
-      </form>
-    </main>`;
-  const form = document.getElementById('reset');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!form.reportValidity()) return;
-    const { error } = await db.auth.updateUser({ password: form.password.value });
-    if (error) {
-      const el = form.querySelector('.form-error');
-      el.textContent = friendlyError(error).message;
-      el.hidden = false;
-      return;
+    try {
+      await api('/login', { method: 'POST', body: { email: form.email.value.trim(), password: form.password.value } });
+      renderShell();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
     }
-    toast('Senha alterada!');
-    renderShell();
+  });
+
+  document.getElementById('forgot').addEventListener('click', () => {
+    showError('Para redefinir a senha, fale com o suporte do sistema.');
   });
 }
 
@@ -127,11 +87,6 @@ async function renderShell() {
   route();
 }
 
-export function setBusinessName(name) {
-  const el = document.getElementById('business-name');
-  if (el) el.textContent = name;
-}
-
 async function route() {
   const view = document.getElementById('view');
   if (!view) return;
@@ -151,24 +106,23 @@ async function route() {
   } catch (err) {
     if (token !== renderToken) return;
     view.innerHTML = `<div class="empty"><p>Não foi possível carregar.</p><p class="muted">${esc(err.message)}</p>
-      <button class="btn btn-ghost" onclick="location.reload()">Tentar de novo</button></div>`;
+      <button class="btn btn-ghost" id="retry">Tentar de novo</button></div>`;
+    view.querySelector('#retry').addEventListener('click', () => location.reload());
   }
 }
 
 async function start() {
-  if (!isConfigured) return renderSetupNeeded();
-
   window.addEventListener('hashchange', route);
-
-  db.auth.onAuthStateChange((event, session) => {
-    if (event === 'PASSWORD_RECOVERY') return renderPasswordReset();
-    if (event === 'SIGNED_OUT') { clearCache(); return renderLogin(); }
-    if (event === 'SIGNED_IN' && !document.getElementById('view')) renderShell();
+  window.addEventListener('auth:expired', () => {
+    clearCache();
+    if (!document.getElementById('login')) renderLogin();
   });
-
-  const { data } = await db.auth.getSession();
-  if (data.session) renderShell();
-  else if (!location.hash.includes('type=recovery')) renderLogin();
+  try {
+    await getUser();
+    renderShell();
+  } catch {
+    renderLogin();
+  }
 }
 
 if ('serviceWorker' in navigator) {

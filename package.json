@@ -1,0 +1,16 @@
+{
+  "name": "maiza-manicure",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema para manicure: agenda, clientes, retornos, WhatsApp e caixa.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

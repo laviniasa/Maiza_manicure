@@ -1,4 +1,4 @@
-import { db, check } from '../supabase.js';
+import { api } from '../api.js';
 import { getSettings } from '../data.js';
 import { openAppointmentForm } from '../appointments.js';
 import { esc, isoDate, addDays, fmtDate, daysBetween, waLink, fillTemplate, emptyState, toast } from '../utils.js';
@@ -12,7 +12,7 @@ const TABS = [
 export default async function retornos(view, tab, stillCurrent) {
   const current = TABS.some(([k]) => k === tab) ? tab : 'atrasados';
   const [rows, settings] = await Promise.all([
-    db.from('client_returns').select('*').not('return_due', 'is', null).order('return_due').then(check),
+    api('/returns'),
     getSettings(),
   ]);
   if (!stillCurrent()) return;
@@ -44,7 +44,7 @@ export default async function retornos(view, tab, stillCurrent) {
     openAppointmentForm({ clientId: b.dataset.schedule, onSaved: refresh })));
   view.querySelectorAll('[data-reminded]').forEach((b) => b.addEventListener('click', async () => {
     try {
-      check(await db.from('appointments').update({ return_reminded_at: new Date().toISOString() }).eq('id', b.dataset.reminded));
+      await api(`/appointments/${b.dataset.reminded}/reminded`, { method: 'POST' });
       toast('Marcado como avisada');
       refresh();
     } catch (err) { toast(err.message, 'error'); }

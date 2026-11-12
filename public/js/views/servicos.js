@@ -1,4 +1,4 @@
-import { db, check } from '../supabase.js';
+import { api } from '../api.js';
 import { getServices, SUGGESTED_SERVICES } from '../data.js';
 import { esc, money, openForm, toast, confirmDialog, emptyState, parseMoney, moneyInput } from '../utils.js';
 
@@ -28,7 +28,7 @@ export default async function servicos(view, _param, stillCurrent) {
   view.querySelector('#new-service').addEventListener('click', () => openServiceForm({ onSaved: refresh }));
   view.querySelector('#seed')?.addEventListener('click', async () => {
     try {
-      check(await db.from('services').insert(SUGGESTED_SERVICES));
+      await api('/services', { method: 'POST', body: SUGGESTED_SERVICES });
       toast('Serviços criados! Toque em cada um para ajustar o preço.');
       refresh();
     } catch (err) { toast(err.message, 'error'); }
@@ -58,7 +58,7 @@ function openServiceForm({ service: s = null, onSaved }) {
           { confirmLabel: 'Excluir', danger: true });
         if (!ok) return;
         try {
-          check(await db.from('services').delete().eq('id', s.id));
+          await api(`/services/${s.id}`, { method: 'DELETE' });
           toast('Serviço excluído');
           close();
           onSaved?.();
@@ -75,8 +75,8 @@ function openServiceForm({ service: s = null, onSaved }) {
         return_days: v.return_days ? Number(v.return_days) : null,
         active: v.active === 'on',
       };
-      if (s) check(await db.from('services').update(row).eq('id', s.id));
-      else check(await db.from('services').insert(row));
+      if (s) await api(`/services/${s.id}`, { method: 'PUT', body: row });
+      else await api('/services', { method: 'POST', body: row });
       toast('Serviço salvo');
       onSaved?.();
     },

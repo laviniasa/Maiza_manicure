@@ -1,4 +1,4 @@
-import { db, check } from '../supabase.js';
+import { api, qs } from '../api.js';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../data.js';
 import {
   esc, money, isoDate, parseDate, addDays, startOfMonth, endOfMonth, fmtMonth, fmtDate,
@@ -24,9 +24,7 @@ export default async function caixa(view, param, stillCurrent, filter = 'todos')
   const from = isoDate(startOfMonth(monthDate));
   const to = isoDate(endOfMonth(monthDate));
 
-  const transactions = check(await db.from('transactions').select('*')
-    .gte('date', from).lte('date', to)
-    .order('date', { ascending: false }).order('created_at', { ascending: false }));
+  const transactions = await api('/transactions' + qs({ from, to }));
   if (!stillCurrent()) return;
 
   const s = summarize(transactions);
@@ -100,7 +98,7 @@ export default async function caixa(view, param, stillCurrent, filter = 'todos')
   view.querySelectorAll('[data-settle]').forEach((b) => b.addEventListener('click', async (e) => {
     e.stopPropagation();
     try {
-      check(await db.from('transactions').update({ is_paid: true }).eq('id', b.dataset.settle));
+      await api(`/transactions/${b.dataset.settle}`, { method: 'PUT', body: { is_paid: true } });
       toast('Lançamento confirmado');
       refresh();
     } catch (err) { toast(err.message, 'error'); }
@@ -140,7 +138,7 @@ function openTransactionForm({ transaction: t = null, type, date, onSaved }) {
       form.querySelector('[data-delete]')?.addEventListener('click', async () => {
         if (!(await confirmDialog('Excluir este lançamento?', { confirmLabel: 'Excluir', danger: true }))) return;
         try {
-          check(await db.from('transactions').delete().eq('id', t.id));
+          await api(`/transactions/${t.id}`, { method: 'DELETE' });
           toast('Lançamento excluído');
           close();
           onSaved?.();
@@ -158,8 +156,8 @@ function openTransactionForm({ transaction: t = null, type, date, onSaved }) {
         category: v.category,
         is_paid: v.is_paid === 'on',
       };
-      if (t) check(await db.from('transactions').update(row).eq('id', t.id));
-      else check(await db.from('transactions').insert(row));
+      if (t) await api(`/transactions/${t.id}`, { method: 'PUT', body: row });
+      else await api('/transactions', { method: 'POST', body: row });
       toast('Lançamento salvo');
       onSaved?.();
     },

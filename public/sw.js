@@ -1,7 +1,7 @@
 // Service worker: permite instalar o app e abrir a tela mesmo com internet instável.
-// Os dados (agenda, clientes, caixa) sempre vêm do Supabase; só os arquivos do app ficam em cache.
+// Os dados (agenda, clientes, caixa) sempre vêm do servidor; só os arquivos do app ficam em cache.
 // Ao publicar mudanças grandes, aumente o número da versão.
-const CACHE = 'studio-v1';
+const CACHE = 'studio-v2';
 
 const SHELL = [
   './',
@@ -9,8 +9,7 @@ const SHELL = [
   './manifest.webmanifest',
   './css/style.css',
   './js/app.js',
-  './js/config.js',
-  './js/supabase.js',
+  './js/api.js',
   './js/data.js',
   './js/utils.js',
   './js/appointments.js',
@@ -41,7 +40,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
   event.respondWith(
     fetch(request)
